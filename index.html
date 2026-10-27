@@ -21,7 +21,8 @@
   h2{margin:18px 16px 10px;font-size:20px}
   .grid{display:flex;flex-direction:column;gap:14px;padding:0 16px}
   .card{background:var(--card);border-radius:20px;padding:16px;box-shadow:0 2px 12px rgba(0,0,0,.04)}
-  .img{width:100%;aspect-ratio:4/3;border-radius:14px;background:#fff center/contain no-repeat;margin-bottom:12px}
+  .img{display:block;width:100%;max-height:320px;object-fit:contain;border-radius:14px;background:#fff;margin-bottom:12px}
+  body{max-width:520px;margin:0 auto}
   .name{font-weight:700;font-size:18px;margin:0 0 6px}
   .desc{font-size:14px;line-height:1.35;margin:0 0 10px;color:#333}
   .prices{display:flex;align-items:center;gap:10px;min-height:24px}
@@ -43,7 +44,7 @@
 
 <script>
 // ==== НАСТРОЙКИ ====
-const ADMIN_USERNAME = "your_admin";   // robiya_billz
+const ADMIN_USERNAME = "robiya_billz";   // username админа в Telegram, без @
 const CURRENCY = "so'm";
 // ====================
 
@@ -90,7 +91,7 @@ function render(){
 function card(p){
   const disc = p.oldPrice > p.price ? Math.round((1 - p.price/p.oldPrice)*100) : 0;
   return `<div class="card">
-    ${p.image ? `<div class="img" style="background-image:url('${esc(p.image)}')"></div>` : ""}
+    ${p.image ? `<img class="img" src="${esc(p.image)}" loading="lazy" alt="" onerror="this.remove()">` : ""}
     <p class="name">${esc(p.name)}</p>
     ${p.description ? `<p class="desc">${esc(p.description)}</p>` : ""}
     <div class="prices">${disc ? `<span class="old">${fmt(p.oldPrice)}</span><span class="badge">${disc}%</span>` : ""}</div>
