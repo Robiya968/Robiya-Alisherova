@@ -12,7 +12,6 @@ let token = null, tokenAt = 0;
 let cache = { at: 0, data: [] };
 
 async function login() {
-  // ВАЖНО: путь и имя поля взяты по памяти из публичной документации BILLZ v2 — сверьте с вашей докой
   const r = await fetch(`${BASE}/v1/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -41,18 +40,23 @@ async function fetchProducts() {
   return out.map(mapProduct).filter(p => p.price > 0);
 }
 
-// Привязка полей BILLZ -> наш формат. Названия полей проверьте на реальном ответе.
+// Привязка полей BILLZ -> наш формат.
 function mapProduct(p) {
   const shop = (p.shop_prices || [])[0] || {};
+  const retail = Number(shop.retail_price || 0);
+  const promo = Number(shop.promo_price || 0);
+  const hasPromo = promo > 0 && promo < retail;
+  const photo = (p.photos || [])[0];
+  const cat = (p.categories || [])[0];
   return {
     id: p.id,
     name: p.name,
-    category: (p.categories && p.categories[0]?.name) || "Прочее",
-    description: p.description || "",
-    price: Number(shop.retail_price ?? p.retail_price ?? 0),
-    oldPrice: Number(shop.old_price ?? 0),
-    image: (p.photos && p.photos[0]) || p.main_image_url_full || "",
-    stock: Number((p.shop_measurement_values || [])[0]?.active_measurement_value ?? p.measurement_value ?? 1),
+    category: (typeof cat === "string" ? cat : cat?.name) || "Прочее",
+    description: String(p.description || "").replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim(),
+    price: hasPromo ? promo : retail,
+    oldPrice: hasPromo ? retail : 0,
+    image: (typeof photo === "string" ? photo : photo?.photo_url || photo?.url) || p.main_image_url_full || "",
+    stock: Number((p.shop_measurement_values || [])[0]?.active_measurement_value ?? 0),
   };
 }
 
