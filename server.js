@@ -1,5 +1,5 @@
 // Минимальный сервер: отдаёт index.html и /api/products (товары из BILLZ).
-// Запуск: BILLZ_SECRET_KEY=xxx node server.js   (нужен Node 18+)
+// Варианты одного товара (цвет, размер) склеиваются в одну карточку по parent_id.
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
@@ -37,27 +37,74 @@ async function fetchProducts() {
     out.push(...items);
     if (items.length < 100) break;
   }
-  return out.map(mapProduct).filter(p => p.price > 0);
+  return groupProducts(out);
 }
 
-// Привязка полей BILLZ -> наш формат.
-function mapProduct(p) {
+function cleanText(s) {
+  return String(s || "").replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function attrsOf(p) {
+  const o = {};
+  for (const a of p.product_attributes || []) {
+    if (a.attribute_name && a.attribute_value) o[a.attribute_name] = a.attribute_value;
+  }
+  return o;
+}
+
+function mapVariant(p) {
   const shop = (p.shop_prices || [])[0] || {};
   const retail = Number(shop.retail_price || 0);
   const promo = Number(shop.promo_price || 0);
   const hasPromo = promo > 0 && promo < retail;
   const photo = (p.photos || [])[0];
-  const cat = (p.categories || [])[0];
   return {
     id: p.id,
-    name: p.name,
-    category: (typeof cat === "string" ? cat : cat?.name) || "Прочее",
-    description: String(p.description || "").replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim(),
+    attrs: attrsOf(p),
     price: hasPromo ? promo : retail,
     oldPrice: hasPromo ? retail : 0,
     image: (typeof photo === "string" ? photo : photo?.photo_url || photo?.url) || p.main_image_url_full || "",
     stock: Number((p.shop_measurement_values || [])[0]?.active_measurement_value ?? 0),
   };
+}
+
+// Название без хвоста варианта: "рубашка / красный" -> "рубашка"
+function baseName(p, attrs) {
+  const name = String(p.name || "");
+  const label = Object.values(attrs).join(" / ");
+  if (label && name.endsWith(" / " + label)) return name.slice(0, -(label.length + 3));
+  if (label) {
+    const i = name.indexOf(" / ");
+    if (i > 0) return name.slice(0, i);
+  }
+  return name;
+}
+
+function groupProducts(items) {
+  const groups = new Map();
+  for (const p of items) {
+    // склеиваем только товары с атрибутами (цвет, размер); обычные остаются отдельными
+    const hasAttrs = Object.keys(attrsOf(p)).length > 0;
+    const key = (p.parent_id && hasAttrs) ? p.parent_id : p.id;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(p);
+  }
+  const result = [];
+  for (const [key, list] of groups) {
+    const first = list[0];
+    const variants = list.map(mapVariant).filter(v => v.price > 0);
+    if (!variants.length) continue;
+    const cat = (first.categories || [])[0];
+    result.push({
+      id: key,
+      name: baseName(first, variants[0].attrs),
+      category: (typeof cat === "string" ? cat : cat?.name) || "Прочее",
+      description: cleanText(list.map(p => p.description).find(d => cleanText(d))),
+      image: variants.map(v => v.image).find(Boolean) || "",
+      variants,
+    });
+  }
+  return result;
 }
 
 const server = http.createServer(async (req, res) => {
@@ -76,4 +123,7 @@ const server = http.createServer(async (req, res) => {
   res.end(fs.readFileSync(path.join(__dirname, "index.html")));
 });
 
-server.listen(PORT, () => console.log("http://localhost:" + PORT));
+if (require.main === module) {
+  server.listen(PORT, () => console.log("http://localhost:" + PORT));
+}
+module.exports = { groupProducts };
