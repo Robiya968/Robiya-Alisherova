@@ -7,8 +7,8 @@
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
   :root{
-    --bg:#ffffff; --card:#f7f7f8; --text:#111; --muted:#8a8a8e;
-    --accent:#ff0033; --chip:#f1f1f3; --chip-active:#111; --chip-active-text:#fff;
+    --bg:#fdf9f3; --card:#f6eee2; --text:#3b3228; --muted:#a39785;
+    --accent:#d98a6a; --chip:#efe4d3; --chip-active:#b8946a; --chip-active-text:#fff; --btn:#8946a; 
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{margin:0 auto;max-width:520px;background:var(--bg);color:var(--text);font-family:-apple-system,"Segoe UI",Roboto,sans-serif;padding-bottom:24px}
@@ -35,7 +35,7 @@
   .price{font-weight:800;font-size:19px;margin-top:4px}
   .stock{font-size:13px;color:var(--muted);margin-top:4px}
   .btn{margin-top:12px;width:100%;border:0;border-radius:14px;padding:13px;font-size:16px;font-weight:600;
-       background:var(--tg-theme-button-color,#2481cc);color:var(--tg-theme-button-text-color,#fff);cursor:pointer}
+       background:var(--btn);color:#fff;cursor:pointer}
   .empty{text-align:center;color:var(--muted);padding:40px 16px}
 </style>
 </head>
@@ -50,7 +50,7 @@
 // ============ НАСТРОЙКИ (меняйте здесь) ============
 const ADMIN_USERNAME = "robiya_billz";   // username админа в Telegram, без @
 const CURRENCY = "so'm";
-const BUTTON_TEXT = "Написать админу";   // надпись на кнопке
+const BUTTON_TEXT = "Admin bilan bog'lanish";   // надпись на кнопке
 
 // Текст сообщения админу. Можно менять слова как угодно.
 // Подставляются: {name} — название, {variant} — выбранный цвет/размер, {price} — цена
