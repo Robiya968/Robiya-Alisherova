@@ -88,15 +88,20 @@ function render(){
 
   const list = products.filter(p =>
     (activeCat==="Все" || p.category===activeCat) &&
-    p.name.toLowerCase().includes(query));
+    String(p.name || "").toLowerCase().includes(query));
 
   const groups = {};
   list.forEach(p => (groups[p.category || "Прочее"] ||= []).push(p));
 
   const html = Object.entries(groups).map(([cat, items]) => `
     <h2>${esc(cat)}</h2>
-    <div class="grid">${items.map(card).join("")}</div>`).join("");
+    <div class="grid">${items.map(safeCard).join("")}</div>`).join("");
   document.getElementById("list").innerHTML = html || `<div class="empty">Ничего не найдено</div>`;
+}
+
+// если с одним товаром что-то не так, остальные всё равно покажутся
+function safeCard(p){
+  try { return card(p); } catch(e) { console.error(e, p); return ""; }
 }
 
 function options(p, v){
