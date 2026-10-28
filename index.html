@@ -37,10 +37,10 @@
   .btn{margin-top:12px;width:100%;border:0;border-radius:14px;padding:13px;font-size:16px;font-weight:600;
        background:var(--btn);color:#fff;cursor:pointer}
   .empty{text-align:center;color:var(--muted);padding:40px 16px}
-</style>
+.contacts{display:flex;gap:8px;overflow-x:auto;padding:12px 16px 0;scrollbar-width:none} .contact{flex:1 0 auto;text-align:center;text-decoration:none;background:var(--btn,#4a3426);color:#fff;padding:11px 16px;border-radius:14px;font-size:14px;font-weight:600;white-space:nowrap}.contacts{display:flex;gap:8px;overflow-x:auto;padding:12px 16px 0;scrollbar-width:none} .contact{flex:1 0 auto;text-align:center;text-decoration:none;background:var(--btn,#4a3426);color:#fff;padding:11px 16px;border-radius:14px;font-size:14px;font-weight:600;white-space:nowrap}.contacts{display:flex;gap:8px;overflow-x:auto;padding:12px 16px 0;scrollbar-width:none} .contact{flex:1 0 auto;text-align:center;text-decoration:none;background:var(--btn,#4a3426);color:#fff;padding:11px 16px;border-radius:14px;font-size:14px;font-weight:600;white-space:nowrap}</style>
 </head>
 <body>
-<header>
+<div id="contacts" class="contacts"></div><header>
   <input id="q" class="search" type="search" placeholder="Поиск по товарам">
   <div id="chips" class="chips"></div>
 </header>
@@ -50,7 +50,7 @@
 // ============ НАСТРОЙКИ (меняйте здесь) ============
 const ADMIN_USERNAME = "robiya_billz";   // username админа в Telegram, без @
 const CURRENCY = "so'm";
-const BUTTON_TEXT = "Admin bilan bog'lanish";   // надпись на кнопке
+const CONTACTS = [{title:"Telegram", url:"https://t.me/robiya_billz"},{title:"Позвонить", url:"tel:+998901298600", url:"instagram: crryxqxx0"} ];const BUTTON_TEXT = "Admin bilan bog'lanish";   // надпись на кнопке
 
 // Текст сообщения админу. Можно менять слова как угодно.
 // Подставляются: {name} — название, {variant} — выбранный цвет/размер, {price} — цена
@@ -173,7 +173,7 @@ document.addEventListener("click", e => {
 });
 document.getElementById("q").addEventListener("input", e => { query = e.target.value.trim().toLowerCase(); render(); });
 
-load();
+function renderContacts(){document.getElementById("contacts").innerHTML=CONTACTS.map(function(c){return '<a class="contact" href="'+esc(c.url)+'" data-url="'+esc(c.url)+'">'+esc(c.title)+'</a>';}).join("");}document.addEventListener("click",function(e){var a=e.target.closest(".contact");if(!a)return;var url=a.dataset.url;if(url.indexOf("http")===0){e.preventDefault();if(tg&&url.indexOf("https://t.me/")===0)tg.openTelegramLink(url);else if(tg)tg.openLink(url);else window.open(url,"_blank");}});renderContacts();function renderContacts(){document.getElementById("contacts").innerHTML=CONTACTS.map(function(c){return '<a class="contact" href="'+esc(c.url)+'" data-url="'+esc(c.url)+'">'+esc(c.title)+'</a>';}).join("");}document.addEventListener("click",function(e){var a=e.target.closest(".contact");if(!a)return;var url=a.dataset.url;if(url.indexOf("http")===0){e.preventDefault();if(tg&&url.indexOf("https://t.me/")===0)tg.openTelegramLink(url);else if(tg)tg.openLink(url);else window.open(url,"_blank");}});renderContacts();load();
 </script>
 </body>
 </html>
