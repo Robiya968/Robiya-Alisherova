@@ -11,7 +11,7 @@
     --accent:#ff0033; --chip:#f1f1f3; --chip-active:#111; --chip-active-text:#fff;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,"Segoe UI",Roboto,sans-serif;padding-bottom:24px}
+  body{margin:0 auto;max-width:520px;background:var(--bg);color:var(--text);font-family:-apple-system,"Segoe UI",Roboto,sans-serif;padding-bottom:24px}
   header{position:sticky;top:0;background:var(--bg);z-index:5;padding:12px 16px 8px}
   .search{width:100%;border:0;background:var(--chip);border-radius:14px;padding:12px 14px;font-size:15px;outline:none}
   .chips{display:flex;gap:8px;overflow-x:auto;padding:10px 0 4px;scrollbar-width:none}
@@ -22,9 +22,13 @@
   .grid{display:flex;flex-direction:column;gap:14px;padding:0 16px}
   .card{background:var(--card);border-radius:20px;padding:16px;box-shadow:0 2px 12px rgba(0,0,0,.04)}
   .img{display:block;width:100%;max-height:320px;object-fit:contain;border-radius:14px;background:#fff;margin-bottom:12px}
-  body{max-width:520px;margin:0 auto}
   .name{font-weight:700;font-size:18px;margin:0 0 6px}
   .desc{font-size:14px;line-height:1.35;margin:0 0 10px;color:#333}
+  .opt{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin:8px 0}
+  .optname{font-size:13px;color:var(--muted);margin-right:2px}
+  .var{border:1px solid #d9d9de;background:#fff;color:var(--text);padding:7px 14px;border-radius:999px;font-size:14px;cursor:pointer}
+  .var.active{background:var(--chip-active);color:var(--chip-active-text);border-color:var(--chip-active)}
+  .var.dim{opacity:.45}
   .prices{display:flex;align-items:center;gap:10px;min-height:24px}
   .old{color:var(--muted);text-decoration:line-through;font-size:15px}
   .badge{background:var(--accent);color:#fff;font-weight:700;font-size:14px;padding:5px 12px;border-radius:999px}
@@ -43,18 +47,24 @@
 <main id="list"></main>
 
 <script>
-// ==== НАСТРОЙКИ ====
+// ============ НАСТРОЙКИ (меняйте здесь) ============
 const ADMIN_USERNAME = "robiya_billz";   // username админа в Telegram, без @
 const CURRENCY = "so'm";
-// ====================
+const BUTTON_TEXT = "Написать админу";   // надпись на кнопке
+
+// Текст сообщения админу. Можно менять слова как угодно.
+// Подставляются: {name} — название, {variant} — выбранный цвет/размер, {price} — цена
+const MESSAGE_TEMPLATE = "Здравствуйте! Интересует: {name} ({variant}) — {price}";
+// ===================================================
 
 const tg = window.Telegram && Telegram.WebApp;
 if (tg) { tg.ready(); tg.expand(); }
 
 const DEMO = [
-  {id:1,name:"Донарли juftlik",category:"Kombo",description:"Ikkita donar pitsa (25 cm)",price:115000,oldPrice:138000,image:"",stock:10},
-  {id:2,name:"Pitsa kruassan",category:"Pitsa kruassan",description:"Kruassan, pishloq, tovuq",price:32000,oldPrice:0,image:"",stock:5},
-  {id:3,name:"Margarita",category:"Pitsa",description:"Tomat, mozzarella, rayhon",price:69000,oldPrice:0,image:"",stock:0},
+  {id:"d1",name:"Рубашка",category:"одежда",description:"Хлопок, свободный крой",image:"",variants:[
+    {id:"a",attrs:{"цвет":"красный","размер":"M"},price:500000,oldPrice:0,image:"",stock:3},
+    {id:"b",attrs:{"цвет":"красный","размер":"L"},price:500000,oldPrice:0,image:"",stock:0},
+    {id:"c",attrs:{"цвет":"синий","размер":"M"},price:450000,oldPrice:500000,image:"",stock:5}]},
 ];
 
 let products = [], activeCat = "Все", query = "";
@@ -66,7 +76,8 @@ async function load(){
     const r = await fetch("/api/products");
     if(!r.ok) throw 0;
     products = await r.json();
-  }catch(e){ products = DEMO; }   // без сервера показываем демо-данные
+  }catch(e){ products = DEMO; }
+  products.forEach(p => p.sel = 0);
   render();
 }
 
@@ -88,26 +99,69 @@ function render(){
   document.getElementById("list").innerHTML = html || `<div class="empty">Ничего не найдено</div>`;
 }
 
+function options(p, v){
+  const names = [...new Set(p.variants.flatMap(x => Object.keys(x.attrs)))];
+  return names.map(n => {
+    const vals = [...new Set(p.variants.map(x => x.attrs[n]).filter(x => x !== undefined))];
+    if (vals.length < 2) return "";
+    return `<div class="opt"><span class="optname">${esc(n)}:</span>` + vals.map(val => {
+      const out = p.variants.filter(x => x.attrs[n] === val).every(x => x.stock <= 0);
+      return `<button class="var ${v.attrs[n]===val?"active":""} ${out?"dim":""}" data-pid="${esc(p.id)}" data-a="${esc(n)}" data-v="${esc(val)}">${esc(val)}</button>`;
+    }).join("") + `</div>`;
+  }).join("");
+}
+
 function card(p){
-  const disc = p.oldPrice > p.price ? Math.round((1 - p.price/p.oldPrice)*100) : 0;
-  return `<div class="card">
-    ${p.image ? `<img class="img" src="${esc(p.image)}" loading="lazy" alt="" onerror="this.remove()">` : ""}
+  const v = p.variants[p.sel || 0];
+  const disc = v.oldPrice > v.price ? Math.round((1 - v.price/v.oldPrice)*100) : 0;
+  const img = v.image || p.image;
+  return `<div class="card" data-pid="${esc(p.id)}">
+    ${img ? `<img class="img" src="${esc(img)}" loading="lazy" alt="" onerror="this.remove()">` : ""}
     <p class="name">${esc(p.name)}</p>
     ${p.description ? `<p class="desc">${esc(p.description)}</p>` : ""}
-    <div class="prices">${disc ? `<span class="old">${fmt(p.oldPrice)}</span><span class="badge">${disc}%</span>` : ""}</div>
-    <div class="price">${fmt(p.price)}</div>
-    ${p.stock <= 0 ? `<div class="stock">Нет в наличии</div>` : ""}
-    <button class="btn" data-id="${p.id}">Написать админу</button>
+    ${options(p, v)}
+    <div class="prices">${disc ? `<span class="old">${fmt(v.oldPrice)}</span><span class="badge">${disc}%</span>` : ""}</div>
+    <div class="price">${fmt(v.price)}</div>
+    ${v.stock <= 0 ? `<div class="stock">Нет в наличии</div>` : ""}
+    <button class="btn" data-pid="${esc(p.id)}">${esc(BUTTON_TEXT)}</button>
   </div>`;
 }
+
+function findCard(pid){ return [...document.querySelectorAll(".card")].find(c => c.dataset.pid === pid); }
 
 document.addEventListener("click", e => {
   const chip = e.target.closest(".chip");
   if(chip){ activeCat = chip.dataset.c; render(); return; }
+
+  const vb = e.target.closest(".var");
+  if(vb){
+    const p = products.find(x => String(x.id) === vb.dataset.pid);
+    const cur = p.variants[p.sel || 0];
+    const a = vb.dataset.a, val = vb.dataset.v;
+    let best = -1, bestScore = -1;
+    p.variants.forEach((x, i) => {
+      if (x.attrs[a] !== val) return;
+      let score = 0;
+      for (const k in cur.attrs) if (k !== a && x.attrs[k] === cur.attrs[k]) score++;
+      if (x.stock > 0) score += 0.5;
+      if (score > bestScore) { bestScore = score; best = i; }
+    });
+    if (best >= 0) p.sel = best;
+    const el = findCard(vb.dataset.pid);
+    if (el) el.outerHTML = card(p);
+    return;
+  }
+
   const btn = e.target.closest(".btn");
   if(btn){
-    const p = products.find(x => String(x.id) === btn.dataset.id);
-    const text = `Здравствуйте! Интересует: ${p.name} — ${fmt(p.price)}`;
+    const p = products.find(x => String(x.id) === btn.dataset.pid);
+    const v = p.variants[p.sel || 0];
+    const variantText = Object.entries(v.attrs).map(([k, val]) => `${k}: ${val}`).join(", ");
+    const text = MESSAGE_TEMPLATE
+      .replace("{name}", p.name)
+      .replace("{variant}", variantText)
+      .replace("{price}", fmt(v.price))
+      .replace(/\s*\(\s*\)/g, "");
     const url = `https://t.me/${ADMIN_USERNAME}?text=${encodeURIComponent(text)}`;
     tg ? tg.openTelegramLink(url) : window.open(url, "_blank");
   }
