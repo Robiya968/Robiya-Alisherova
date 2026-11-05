@@ -34,8 +34,10 @@
   .badge{background:var(--accent);color:#fff;font-weight:700;font-size:14px;padding:5px 12px;border-radius:999px}
   .price{font-weight:800;font-size:19px;margin-top:4px}
   .stock{font-size:13px;color:var(--muted);margin-top:4px}
-  .btn{margin-top:12px;width:100%;border:0;border-radius:14px;padding:13px;font-size:16px;font-weight:600;
+  .btn,.obtn{margin-top:12px;width:100%;border:0;border-radius:14px;padding:13px;font-size:16px;font-weight:600;
        background:var(--btn);color:#fff;cursor:pointer}
+  .btn.alt{margin-top:8px;background:transparent;color:var(--btn);border:2px solid var(--btn);padding:11px}
+  .obtn:disabled{opacity:.6;cursor:default}
   .empty{text-align:center;color:var(--muted);padding:40px 16px}
   .search{width:calc(100% - 60px)}
   .contacts{position:absolute;top:12px;right:16px;padding:0;overflow:visible;display:block}
@@ -44,6 +46,27 @@
   .cmenu.open{display:block}
   .citem{display:block;padding:12px 14px;border-radius:10px;color:var(--text);text-decoration:none;font-size:15px;font-weight:600}
   .citem:active{background:var(--chip)}
+
+  /* ----- форма заказа ----- */
+  .ord{position:fixed;inset:0;z-index:40;background:rgba(30,20,12,.5);display:flex;align-items:flex-end;justify-content:center}
+  .ord[hidden]{display:none}
+  .sheet{width:100%;max-width:520px;max-height:92vh;overflow:auto;background:var(--bg);border-radius:22px 22px 0 0;padding:18px 16px 24px}
+  .shead{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;font-size:19px}
+  .xbtn{border:0;background:var(--chip);color:var(--text);width:36px;height:36px;border-radius:50%;font-size:16px;cursor:pointer}
+  .osum{background:var(--card);border-radius:14px;padding:12px 14px;margin-bottom:12px}
+  .oname{font-weight:700;font-size:16px}
+  .ovar{font-size:14px;color:var(--muted);margin-top:2px}
+  .oprice{font-weight:800;font-size:18px;margin-top:6px}
+  .fl{display:block;font-size:13px;color:var(--muted);margin:10px 0 0}
+  .fl input,.fl textarea{display:block;width:100%;margin-top:4px;border:0;background:var(--chip);color:var(--text);border-radius:12px;padding:12px 14px;font-size:16px;font-family:inherit;outline:none;resize:none}
+  .qty{display:flex;align-items:center;gap:14px;margin-top:6px}
+  .qty button{border:0;background:var(--chip);color:var(--text);width:44px;height:44px;border-radius:12px;font-size:22px;cursor:pointer}
+  .qty span{min-width:28px;text-align:center;font-size:18px;font-weight:700;color:var(--text)}
+  .oerr{color:#b3261e;font-size:14px;margin-top:10px;min-height:18px}
+  .ook{text-align:center;padding:18px 6px 6px}
+  .ook .tick{width:64px;height:64px;border-radius:50%;background:var(--chip-active);color:#fff;font-size:32px;display:flex;align-items:center;justify-content:center;margin:0 auto 14px}
+  .ook b{display:block;font-size:20px;margin-bottom:8px}
+  .ook p{margin:0;font-size:15px;line-height:1.4}
 </style>
 </head>
 <body>
@@ -53,12 +76,36 @@
 </header>
 <main id="list"></main>
 
+<div id="ord" class="ord" hidden>
+  <div class="sheet" role="dialog" aria-modal="true">
+    <div class="shead"><b id="ordTitle"></b><button id="ordX" class="xbtn" type="button" aria-label="Закрыть">✕</button></div>
+    <div id="ordBody"></div>
+  </div>
+</div>
+
 <script>
 // ============ НАСТРОЙКИ (меняйте здесь) ============
 const ADMIN_USERNAME = "robiya_billz";   // username админа в Telegram, без @
 const CURRENCY = "so'm";
 const CONTACTS = [{title:"Telegram", url:"https://t.me/robiya_billz"},{title:"+998 90 129 86 00", url:"tel:+998901298600"},{title:"Instagram", url:"https://instagram.com/crryqxx0"}];
-const BUTTON_TEXT = "Admin bilan bog'lanish";   // надпись на кнопке
+const BUTTON_TEXT = "Admin bilan bog'lanish";   // надпись на кнопке связи с админом
+const ORDER_BUTTON_TEXT = "Buyurtma berish";    // надпись на кнопке заказа
+
+// Тексты формы заказа
+const ORDER_TEXTS = {
+  title: "Buyurtma berish",
+  name: "Ismingiz",
+  phone: "Telefon raqamingiz",
+  qty: "Soni",
+  comment: "Izoh (ixtiyoriy)",
+  submit: "Yuborish",
+  sending: "Yuborilmoqda...",
+  okTitle: "Rahmat!",
+  ok: "Buyurtmangiz qabul qilindi. Xodimlarimiz tez orada siz bilan bog'lanishadi.",
+  close: "Yopish",
+  errField: "Ism va telefon raqamini to'g'ri kiriting",
+  errSend: "Yuborib bo'lmadi. Qayta urinib ko'ring yoki admin bilan bog'laning.",
+};
 
 // Текст сообщения админу. Можно менять слова как угодно.
 // Подставляются: {name} — название, {variant} — выбранный цвет/размер, {price} — цена
@@ -136,11 +183,106 @@ function card(p){
     <div class="prices">${disc ? `<span class="old">${fmt(v.oldPrice)}</span><span class="badge">${disc}%</span>` : ""}</div>
     <div class="price">${fmt(v.price)}</div>
     ${v.stock <= 0 ? `<div class="stock">Нет в наличии</div>` : ""}
-    <button class="btn" data-pid="${esc(p.id)}">${esc(BUTTON_TEXT)}</button>
+    <button class="obtn" data-pid="${esc(p.id)}">${esc(ORDER_BUTTON_TEXT)}</button>
+    <button class="btn alt" data-pid="${esc(p.id)}">${esc(BUTTON_TEXT)}</button>
   </div>`;
 }
 
 function findCard(pid){ return [...document.querySelectorAll(".card")].find(c => c.dataset.pid === pid); }
+
+// ================= ЗАКАЗ =================
+let ordP = null, ordQty = 1;
+
+function variantLabel(v){ return Object.entries(v.attrs).map(([k, val]) => `${k}: ${val}`).join(", "); }
+
+function openOrder(pid){
+  const p = products.find(x => String(x.id) === pid);
+  if(!p) return;
+  ordP = p; ordQty = 1;
+  const v = p.variants[p.sel || 0];
+  const vt = variantLabel(v);
+  const u = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) || {};
+  const fullName = [u.first_name, u.last_name].filter(Boolean).join(" ");
+  document.getElementById("ordTitle").textContent = ORDER_TEXTS.title;
+  document.getElementById("ordBody").innerHTML = `
+    <div class="osum">
+      <div class="oname">${esc(p.name)}</div>
+      ${vt ? `<div class="ovar">${esc(vt)}</div>` : ""}
+      <div class="oprice" id="oTotal">${fmt(v.price)}</div>
+    </div>
+    <label class="fl">${esc(ORDER_TEXTS.name)}
+      <input id="oName" type="text" autocomplete="name" maxlength="80" value="${esc(fullName)}"></label>
+    <label class="fl">${esc(ORDER_TEXTS.phone)}
+      <input id="oPhone" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" placeholder="+998 90 123 45 67" value="+998 "></label>
+    <div class="fl">${esc(ORDER_TEXTS.qty)}
+      <div class="qty"><button type="button" id="oMinus" aria-label="-">−</button><span id="oQty">1</span><button type="button" id="oPlus" aria-label="+">+</button></div></div>
+    <label class="fl">${esc(ORDER_TEXTS.comment)}
+      <textarea id="oComment" rows="2" maxlength="500"></textarea></label>
+    <div class="oerr" id="oErr"></div>
+    <button class="obtn" id="oSend" type="button" style="margin-top:4px">${esc(ORDER_TEXTS.submit)}</button>`;
+  document.getElementById("ord").hidden = false;
+  document.body.style.overflow = "hidden";
+}
+
+function closeOrder(){
+  document.getElementById("ord").hidden = true;
+  document.body.style.overflow = "";
+  ordP = null;
+}
+
+function setQty(n){
+  ordQty = Math.min(99, Math.max(1, n));
+  document.getElementById("oQty").textContent = ordQty;
+  const v = ordP.variants[ordP.sel || 0];
+  document.getElementById("oTotal").textContent = fmt(v.price * ordQty);
+}
+
+function phoneOk(s){
+  const d = String(s).replace(/\D/g, "");
+  return d.startsWith("998") ? d.length === 12 : d.length >= 9;
+}
+
+async function sendOrder(){
+  const err = document.getElementById("oErr");
+  const btn = document.getElementById("oSend");
+  const name = document.getElementById("oName").value.trim();
+  const phone = document.getElementById("oPhone").value.trim();
+  const comment = document.getElementById("oComment").value.trim();
+  if(!name || !phoneOk(phone)){ err.textContent = ORDER_TEXTS.errField; return; }
+  err.textContent = "";
+  btn.disabled = true; btn.textContent = ORDER_TEXTS.sending;
+
+  const v = ordP.variants[ordP.sel || 0];
+  const u = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) || null;
+  const payload = {
+    productId: ordP.id, variantId: v.id,
+    productName: ordP.name, variantText: variantLabel(v), price: v.price,
+    qty: ordQty, name, phone, comment,
+    initData: tg ? tg.initData : "",
+    user: u ? {id: u.id, username: u.username, first_name: u.first_name, last_name: u.last_name} : null,
+  };
+  try{
+    const r = await fetch("/api/order", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload)});
+    if(!r.ok) throw 0;
+    document.getElementById("ordBody").innerHTML = `
+      <div class="ook"><div class="tick">✓</div><b>${esc(ORDER_TEXTS.okTitle)}</b><p>${esc(ORDER_TEXTS.ok)}</p></div>
+      <button class="obtn" id="oClose" type="button">${esc(ORDER_TEXTS.close)}</button>`;
+    try{ tg && tg.HapticFeedback && tg.HapticFeedback.notificationOccurred("success"); }catch(x){}
+  }catch(e){
+    err.textContent = ORDER_TEXTS.errSend;
+    btn.disabled = false; btn.textContent = ORDER_TEXTS.submit;
+  }
+}
+
+document.addEventListener("click", e => {
+  const ob = e.target.closest(".obtn");
+  if(ob && ob.dataset.pid){ openOrder(ob.dataset.pid); return; }
+  if(e.target.closest("#oSend")){ sendOrder(); return; }
+  if(e.target.closest("#oMinus")){ if(ordP) setQty(ordQty - 1); return; }
+  if(e.target.closest("#oPlus")){ if(ordP) setQty(ordQty + 1); return; }
+  if(e.target.closest("#ordX") || e.target.closest("#oClose") || e.target.id === "ord"){ closeOrder(); return; }
+});
+document.addEventListener("keydown", e => { if(e.key === "Escape" && !document.getElementById("ord").hidden) closeOrder(); });
 
 document.addEventListener("click", e => {
   const chip = e.target.closest(".chip");
