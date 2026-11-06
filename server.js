@@ -124,14 +124,14 @@ function groupProducts(items) {
 const escHtml = s => String(s ?? "").replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
 const fmtNum = n => new Intl.NumberFormat("ru-RU").format(n);
 
-// не больше 5 заявок за 10 минут с одного адреса (защита от спама)
+// ограничение числа запросов с одного адреса за 10 минут (защита от спама)
 const hits = new Map();
-function limited(ip) {
-  const now = Date.now(), win = 10 * 60 * 1000, max = 5;
-  const arr = (hits.get(ip) || []).filter(t => now - t < win);
-  if (arr.length >= max) { hits.set(ip, arr); return true; }
+function limited(key, max = 5) {
+  const now = Date.now(), win = 10 * 60 * 1000;
+  const arr = (hits.get(key) || []).filter(t => now - t < win);
+  if (arr.length >= max) { hits.set(key, arr); return true; }
   arr.push(now);
-  hits.set(ip, arr);
+  hits.set(key, arr);
   return false;
 }
 setInterval(() => {
@@ -186,7 +186,7 @@ async function handleOrder(req, res) {
   if (!ORDERS_TOKEN || !ORDERS_CHAT) return send(503, { error: "orders not configured" });
 
   const ip = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim() || req.socket.remoteAddress || "?";
-  if (limited(ip)) return send(429, { error: "too many requests" });
+  if (limited("o:" + ip, 5)) return send(429, { error: "too many requests" });
 
   let b;
   try { b = await readJson(req); } catch (e) { return send(400, { error: "bad request" }); }
@@ -272,8 +272,96 @@ async function handleOrder(req, res) {
   send(200, { ok: true });
 }
 
+// ================= КЕШБЭК-КАРТА =================
+
+const PLATFORM_ID = process.env.BILLZ_PLATFORM_ID || "7d4a4c38-dd84-4902-b744-0488b80a4c01";
+// выключить поиск баланса по номеру телефона: CASHBACK_PHONE_LOOKUP=off
+const PHONE_LOOKUP = String(process.env.CASHBACK_PHONE_LOOKUP || "on").toLowerCase() !== "off";
+
+async function billzGet(pathAndQuery) {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (!token || Date.now() - tokenAt > 20 * 3600 * 1000) await login();
+    const r = await fetch(`${BASE}${pathAndQuery}`, {
+      headers: { Authorization: `Bearer ${token}`, "platform-id": PLATFORM_ID },
+    });
+    if (r.status === 401) { token = null; continue; }
+    if (!r.ok) throw new Error("BILLZ " + pathAndQuery.split("?")[0] + " failed: " + r.status);
+    return r.json();
+  }
+  throw new Error("BILLZ auth failed");
+}
+
+async function findClient(params) {
+  const q = new URLSearchParams({ limit: "1", page: "1", ...params });
+  const j = await billzGet(`/v1/client?${q}`);
+  const list = j.clients || j.data?.clients || [];
+  return list[0] || null;
+}
+
+async function findClientByPhone(digits) {
+  // в каком формате Billz хранит номер, заранее неизвестно: пробуем несколько вариантов
+  const variants = [...new Set([digits, "+" + digits, digits.slice(-9)])];
+  for (const v of variants) {
+    const c = await findClient({ phone_number: v });
+    if (c) return c;
+  }
+  return null;
+}
+
+function cardInfo(c, withName) {
+  const out = {
+    found: true,
+    balance: Math.max(0, Math.round(Number(c.balance) || 0)),
+    card: (c.cards && c.cards[0]) ? String(c.cards[0].code || c.cards[0]) : "",
+  };
+  if (withName) out.name = String(c.first_name || "").slice(0, 40);
+  return out;
+}
+
+async function handleCashback(req, res) {
+  const send = (code, obj) => {
+    res.writeHead(code, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+    res.end(JSON.stringify(obj));
+  };
+  const ip = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim() || req.socket.remoteAddress || "?";
+  if (limited("c:" + ip, 20)) return send(429, { error: "too many requests" });
+
+  let b;
+  try { b = await readJson(req); } catch (e) { return send(400, { error: "bad request" }); }
+
+  try {
+    // 1) по подписанному Telegram id (безопасно, нужен WEBAPP_BOT_TOKEN)
+    const user = verifyInitData(String(b.initData || ""));
+    if (user && user.id) {
+      const c = await findClient({ chat_id: String(user.id) });
+      if (c) return send(200, cardInfo(c, true));
+    }
+    // 2) по номеру телефона, показываем только баланс и номер карты, без имени
+    const digits = String(b.phone || "").replace(/\D/g, "");
+    const phoneOk = digits.startsWith("998") ? digits.length === 12 : digits.length >= 9;
+    if (PHONE_LOOKUP && digits && phoneOk) {
+      const c = await findClientByPhone(digits);
+      if (c) return send(200, cardInfo(c, false));
+      return send(200, { found: false, reason: "not_found" });
+    }
+    return send(200, { found: false, reason: digits ? "bad_phone" : "need_phone" });
+  } catch (e) {
+    console.error("cashback lookup failed:", e && e.message);
+    return send(502, { error: "billz error" });
+  }
+}
+
 const server = http.createServer(async (req, res) => {
   const url = String(req.url || "").split("?")[0];
+
+  if (url === "/api/cashback") {
+    if (req.method !== "POST") { res.writeHead(405, { Allow: "POST" }); res.end(); return; }
+    try { await handleCashback(req, res); } catch (e) {
+      console.error(e);
+      if (!res.headersSent) { res.writeHead(500); res.end(); }
+    }
+    return;
+  }
 
   if (url === "/api/products") {
     try {
