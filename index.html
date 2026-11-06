@@ -88,28 +88,28 @@
 const ADMIN_USERNAME = "robiya_billz";   // username админа в Telegram, без @
 const CURRENCY = "so'm";
 const CONTACTS = [{title:"Telegram", url:"https://t.me/robiya_billz"},{title:"+998 90 129 86 00", url:"tel:+998901298600"},{title:"Instagram", url:"https://instagram.com/crryqxx0"}];
-const BUTTON_TEXT = "Admin bilan bog'lanish";   // надпись на кнопке связи с админом
-const ORDER_BUTTON_TEXT = "Buyurtma berish";    // надпись на кнопке заказа
+const BUTTON_TEXT = "Связаться с админом";   // надпись на кнопке связи с админом
+const ORDER_BUTTON_TEXT = "Заказать";    // надпись на кнопке заказа
 
 // Тексты формы заказа
 const ORDER_TEXTS = {
-  title: "Buyurtma berish",
-  name: "Ismingiz",
-  phone: "Telefon raqamingiz",
-  qty: "Soni",
-  comment: "Izoh (ixtiyoriy)",
-  submit: "Yuborish",
-  sending: "Yuborilmoqda...",
-  okTitle: "Rahmat!",
-  ok: "Buyurtmangiz qabul qilindi. Xodimlarimiz tez orada siz bilan bog'lanishadi.",
-  close: "Yopish",
-  errField: "Ism va telefon raqamini to'g'ri kiriting",
-  errSend: "Yuborib bo'lmadi. Qayta urinib ko'ring yoki admin bilan bog'laning.",
+  title: "Заказать",
+  name: "Имя",
+  phone: "Номер телефона",
+  qty: "Количество",
+  comment: "Комментарий (необязательно)",
+  submit: "Отправить",
+  sending: "Отправляется...",
+  okTitle: "Спасибо!",
+  ok: "Спасибо, приняли ваш заказ. Скоро с вами свяжутся",
+  close: "Закрыть",
+  errField: "Пожалуйста, введите номер телефона и имя",
+  errSend: "Не получается отправить, попробуйте позже",
 };
 
 // Текст сообщения админу. Можно менять слова как угодно.
 // Подставляются: {name} — название, {variant} — выбранный цвет/размер, {price} — цена
-const MESSAGE_TEMPLATE = "Assalamu alaykum, {name} ({variant}) — {price} maxsulotini xarid qilmoxchi edim";
+const MESSAGE_TEMPLATE = "Здравствуйте, {name} ({variant}) — {price} хотел(а) заказать";
 // ===================================================
 
 const tg = window.Telegram && Telegram.WebApp;
