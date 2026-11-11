@@ -238,8 +238,8 @@ async function handleOrder(req, res) {
     `<b>Товар:</b> ${escHtml(productName)}`,
     variantText ? `<b>Вариант:</b> ${escHtml(variantText)}` : null,
     `<b>Количество:</b> ${qty}`,
-    price ? `<b>Цена:</b> ${fmtNum(price)} so'm` : null,
-    price ? `<b>Итого:</b> ${fmtNum(price * qty)} so'm` : null,
+    price ? `<b>Цена:</b> ${fmtNum(price)} сум` : null,
+    price ? `<b>Итого:</b> ${fmtNum(price * qty)} сум` : null,
     verified ? null : "⚠️ Цена и товар не сверены с каталогом",
     "",
     `<b>Клиент:</b> ${escHtml(name)}`,
@@ -308,6 +308,26 @@ async function findClientByPhone(digits) {
   return null;
 }
 
+// суммы покупок по номеру телефона (без входа через Telegram) отдаём только если включено явно
+const PURCHASES_BY_PHONE = String(process.env.PURCHASES_BY_PHONE || "off").toLowerCase() === "on";
+
+async function getPurchases(c) {
+  let total = null;
+  try {
+    if (c.id) {
+      const j = await billzGet(`/v1/customer/${encodeURIComponent(c.id)}`);
+      const d = j.data || j;
+      if (d && d.purchase_amount != null) total = Math.max(0, Math.round(Number(d.purchase_amount) || 0));
+    }
+  } catch (e) {
+    console.error("customer details failed:", e && e.message);
+  }
+  const last = String(c.last_transaction_date || "").trim();
+  const lastOk = last && !last.startsWith("0001") && last !== "0";
+  if (total === null && !lastOk) return null;
+  return { total, last: lastOk ? last : "" };
+}
+
 function cardInfo(c, withName) {
   const out = {
     found: true,
@@ -334,14 +354,22 @@ async function handleCashback(req, res) {
     const user = verifyInitData(String(b.initData || ""));
     if (user && user.id) {
       const c = await findClient({ chat_id: String(user.id) });
-      if (c) return send(200, cardInfo(c, true));
+      if (c) {
+        const out = cardInfo(c, true);
+        out.purchases = await getPurchases(c);
+        return send(200, out);
+      }
     }
     // 2) по номеру телефона, показываем только баланс и номер карты, без имени
     const digits = String(b.phone || "").replace(/\D/g, "");
     const phoneOk = digits.startsWith("998") ? digits.length === 12 : digits.length >= 9;
     if (PHONE_LOOKUP && digits && phoneOk) {
       const c = await findClientByPhone(digits);
-      if (c) return send(200, cardInfo(c, false));
+      if (c) {
+        const out = cardInfo(c, false);
+        if (PURCHASES_BY_PHONE) out.purchases = await getPurchases(c);
+        return send(200, out);
+      }
       return send(200, { found: false, reason: "not_found" });
     }
     return send(200, { found: false, reason: digits ? "bad_phone" : "need_phone" });
