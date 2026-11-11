@@ -2,79 +2,146 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Каталог</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script>
+// шапка и фон Telegram под цвет каталога (белый)
+try {
+  var tgw = Telegram.WebApp;
+  tgw.setHeaderColor("#ffffff"); tgw.setBackgroundColor("#ffffff");
+  if (tgw.setBottomBarColor) tgw.setBottomBarColor("#ffffff");
+} catch (e) {}
+</script>
 <style>
   :root{
-    --bg:#0B090C; --card:#1A1513; --text:#D4CABE; --muted:#A5907B;
-    --accent:#806248; --chip:#241A16; --chip-active:#50311D; --chip-active-text:#D4CABE; --btn:#806248; --border: #35271F;
+    --bg:#fff; --text:#000; --muted:#555; --line:#e6e6e8; --chip:#f0f0f2; --soft:#f6f6f7;
+    --red:#e5283f; --red-dark:#c4122c; --err:#c62828;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  body{margin:0 auto;max-width:520px;background:var(--bg);color:var(--text);font-family:-apple-system,"Segoe UI",Roboto,sans-serif;padding-bottom:24px}
+  html{color-scheme:light}
+  body{margin:0 auto;max-width:520px;min-height:100vh;background:var(--bg);color:var(--text);
+       font-family:-apple-system,"Segoe UI",Roboto,sans-serif;padding-bottom:calc(88px + env(safe-area-inset-bottom))}
+  button{font-family:inherit}
+  [hidden]{display:none !important}
+
+  /* ----- шапка: поиск и категории ----- */
   header{position:sticky;top:0;background:var(--bg);z-index:5;padding:12px 16px 8px}
-  .search{width:100%;border:0;background:var(--chip);border-radius:14px;padding:12px 14px;font-size:15px;outline:none}
+  .search{width:100%;border:0;background:var(--chip);color:var(--text);border-radius:14px;padding:12px 14px;font-size:15px;outline:none}
+  .search::placeholder{color:#777}
   .chips{display:flex;gap:8px;overflow-x:auto;padding:10px 0 4px;scrollbar-width:none}
   .chips::-webkit-scrollbar{display:none}
-  .chip{flex:none;border:0;background:var(--chip);color:var(--text);padding:10px 18px;border-radius:999px;font-size:15px;cursor:pointer}
-  .chip.active{background:var(--chip-active);color:var(--chip-active-text)}
-  h2{margin:18px 16px 10px;font-size:20px}
-  .grid{display:flex;flex-direction:column;gap:14px;padding:0 16px}
-  .card{background:var(--card);border-radius:20px;padding:16px;box-shadow:0 2px 12px rgba(0,0,0,.04)}
-  .img{display:block;width:100%;max-height:320px;object-fit:contain;border-radius:14px;background:#fff;margin-bottom:12px}
-  .name{font-weight:700;font-size:18px;margin:0 0 6px}
-  .desc{font-size:14px;line-height:1.35;margin:0 0 10px;color:#333}
-  .opt{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin:8px 0}
-  .optname{font-size:13px;color:var(--muted);margin-right:2px}
-  .var{border:1px solid #d9d9de;background:#fff;color:var(--text);padding:7px 14px;border-radius:999px;font-size:14px;cursor:pointer}
-  .var.active{background:var(--chip-active);color:var(--chip-active-text);border-color:var(--chip-active)}
-  .var.dim{opacity:.45}
-  .prices{display:flex;align-items:center;gap:10px;min-height:24px}
-  .old{color:var(--muted);text-decoration:line-through;font-size:15px}
-  .badge{background:var(--accent);color:#fff;font-weight:700;font-size:14px;padding:5px 12px;border-radius:999px}
-  .price{font-weight:800;font-size:19px;margin-top:4px}
-  .stock{font-size:13px;color:var(--muted);margin-top:4px}
-  .btn,.obtn{margin-top:12px;width:100%;border:0;border-radius:14px;padding:13px;font-size:16px;font-weight:600;
-       background:var(--btn);color:#fff;cursor:pointer}
-  .btn.alt{margin-top:8px;background:transparent;color:var(--btn);border:2px solid var(--btn);padding:11px}
-  .obtn:disabled{opacity:.6;cursor:default}
+  .chip{flex:none;border:0;background:var(--chip);color:var(--text);padding:10px 18px;border-radius:999px;font-size:15px;font-weight:500;cursor:pointer}
+  .chip.active{background:var(--red);color:#fff}
+
+  /* ----- товары: по два в ряд ----- */
+  h2{margin:18px 16px 12px;font-size:21px;font-weight:800}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:20px 12px;padding:0 16px}
+  .card{display:flex;flex-direction:column;min-width:0}
+  .ph{position:relative;aspect-ratio:1/1;border-radius:20px;overflow:hidden;background:var(--chip);margin-bottom:10px}
+  .ph .img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+  .add{position:absolute;right:8px;bottom:8px;width:40px;height:40px;border:0;border-radius:50%;background:#fff;color:#000;
+       display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.2)}
+  .add:active{transform:scale(.92)}
+  .add svg{width:20px;height:20px;stroke:#000;stroke-width:2.6;stroke-linecap:round;fill:none}
+  .pr{display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px}
+  .price{font-weight:800;font-size:18px}
+  .badge{background:var(--red);color:#fff;font-weight:700;font-size:12px;padding:3px 8px;border-radius:999px}
+  .old{color:var(--muted);text-decoration:line-through;font-size:13px}
+  .name{font-size:15px;line-height:1.25;margin:3px 0 0;word-break:break-word}
+  .desc{font-size:13px;line-height:1.3;margin:4px 0 0;color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .opt{display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin:8px 0 0}
+  .optname{font-size:12px;color:var(--muted)}
+  .var{border:1px solid #cfcfd4;background:#fff;color:#000;padding:5px 11px;border-radius:999px;font-size:13px;cursor:pointer}
+  .var.active{background:#000;color:#fff;border-color:#000}
+  .var.dim{opacity:.4}
+  .stock{font-size:13px;font-weight:700;margin-top:6px}
   .empty{text-align:center;color:var(--muted);padding:40px 16px}
-  .search{width:calc(100% - 60px)}
-  .contacts{position:absolute;top:12px;right:16px;padding:0;overflow:visible;display:block}
-  .cbtn{border:0;background:var(--btn,#4a3426);color:#fff;font-size:14px;font-weight:600;padding:0;border-radius:14px;cursor:pointer;width:48px;height:48px;display:flex;align-items:center;justify-content:center}
-  .cmenu{display:none;position:absolute;right:0;top:56px;min-width:210px;background:var(--bg);border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.2);padding:6px}
-  .cmenu.open{display:block}
-  .citem{display:block;padding:12px 14px;border-radius:10px;color:var(--text);text-decoration:none;font-size:15px;font-weight:600}
-  .citem:active{background:var(--chip)}
+
+  /* ----- нижняя панель ----- */
+  .tabs{position:fixed;left:50%;bottom:0;transform:translateX(-50%);width:100%;max-width:520px;z-index:20;
+        display:flex;background:#fff;border-radius:22px 22px 0 0;box-shadow:0 -4px 20px rgba(0,0,0,.1);
+        padding:8px 12px calc(8px + env(safe-area-inset-bottom))}
+  .tab{flex:1;border:0;background:none;color:#000;display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 0;font-size:12px;font-weight:500;cursor:pointer}
+  .tab svg{width:26px;height:26px;fill:currentColor}
+  .tab.active{color:var(--red)}
+
+  /* ----- профиль ----- */
+  .ptitle{margin:0;padding:16px 16px 4px;font-size:26px;font-weight:800}
+  .psec{margin:12px 16px 0}
+  .stitle{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin:0 2px 8px}
+  .lc{position:relative;overflow:hidden;border-radius:22px;padding:18px 20px;color:#fff;
+      background:linear-gradient(135deg,var(--red-dark) 0%,var(--red) 70%,#f2566b 100%);box-shadow:0 6px 18px rgba(229,40,63,.3)}
+  .lc::after{content:"";position:absolute;right:-50px;top:-50px;width:170px;height:170px;border-radius:50%;background:rgba(255,255,255,.12)}
+  .lc>*{position:relative;z-index:1}
+  .lctop{font-size:15px;font-weight:700}
+  .lcl{font-size:14px;opacity:.92;margin-top:16px}
+  .lcbal{font-size:34px;font-weight:800;margin-top:2px}
+  .lcfoot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px;font-size:14px}
+  .lcfoot button,.lcretry{background:none;border:0;color:#fff;text-decoration:underline;font-size:14px;cursor:pointer;padding:0}
+  .lcform{display:flex;gap:8px;margin-top:12px}
+  .lcform input{flex:1;min-width:0;border:0;border-radius:12px;padding:12px 14px;font-size:16px;background:#fff;color:#000;outline:none}
+  .lcform button{flex:none;border:0;border-radius:12px;padding:0 18px;font-size:15px;font-weight:700;background:#000;color:#fff;cursor:pointer}
+  .lcform button:disabled{opacity:.6}
+  .lcmsg{font-size:14px;margin-top:8px;min-height:18px}
+  .pbox{background:var(--soft);border-radius:18px;padding:6px 16px}
+  .prow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;font-size:15px}
+  .prow+.prow{border-top:1px solid var(--line)}
+  .prow span{color:var(--muted)}
+  .prow b{font-weight:700;text-align:right}
+  .pnote{padding:12px 0;font-size:14px;color:var(--muted)}
+  .citem{display:flex;align-items:center;justify-content:space-between;padding:15px 16px;color:#000;text-decoration:none;font-size:16px;font-weight:600}
+  .citem+.citem{border-top:1px solid var(--line)}
+  .citem::after{content:"›";font-size:22px;color:#999;font-weight:400}
+  .cbox{background:var(--soft);border-radius:18px;overflow:hidden}
 
   /* ----- форма заказа ----- */
-  .ord{position:fixed;inset:0;z-index:40;background:rgba(30,20,12,.5);display:flex;align-items:flex-end;justify-content:center}
-  .ord[hidden]{display:none}
-  .sheet{width:100%;max-width:520px;max-height:92vh;overflow:auto;background:var(--bg);border-radius:22px 22px 0 0;padding:18px 16px 24px}
-  .shead{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;font-size:19px}
-  .xbtn{border:0;background:var(--chip);color:var(--text);width:36px;height:36px;border-radius:50%;font-size:16px;cursor:pointer}
-  .osum{background:var(--card);border-radius:14px;padding:12px 14px;margin-bottom:12px}
+  .ord{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center}
+  .sheet{width:100%;max-width:520px;max-height:92vh;overflow:auto;background:#fff;border-radius:22px 22px 0 0;padding:18px 16px calc(24px + env(safe-area-inset-bottom))}
+  .shead{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;font-size:20px}
+  .xbtn{border:0;background:var(--chip);color:#000;width:36px;height:36px;border-radius:50%;font-size:16px;cursor:pointer}
+  .osum{background:var(--soft);border-radius:14px;padding:12px 14px;margin-bottom:12px}
   .oname{font-weight:700;font-size:16px}
   .ovar{font-size:14px;color:var(--muted);margin-top:2px}
   .oprice{font-weight:800;font-size:18px;margin-top:6px}
   .fl{display:block;font-size:13px;color:var(--muted);margin:10px 0 0}
-  .fl input,.fl textarea{display:block;width:100%;margin-top:4px;border:0;background:var(--chip);color:var(--text);border-radius:12px;padding:12px 14px;font-size:16px;font-family:inherit;outline:none;resize:none}
+  .fl input,.fl textarea{display:block;width:100%;margin-top:4px;border:0;background:var(--chip);color:#000;border-radius:12px;padding:12px 14px;font-size:16px;font-family:inherit;outline:none;resize:none}
   .qty{display:flex;align-items:center;gap:14px;margin-top:6px}
-  .qty button{border:0;background:var(--chip);color:var(--text);width:44px;height:44px;border-radius:12px;font-size:22px;cursor:pointer}
-  .qty span{min-width:28px;text-align:center;font-size:18px;font-weight:700;color:var(--text)}
-  .oerr{color:#b3261e;font-size:14px;margin-top:10px;min-height:18px}
-  .ook{text-align:center;padding:18px 6px 6px}
-  .ook .tick{width:64px;height:64px;border-radius:50%;background:var(--chip-active);color:#fff;font-size:32px;display:flex;align-items:center;justify-content:center;margin:0 auto 14px}
+  .qty button{border:0;background:var(--chip);color:#000;width:44px;height:44px;border-radius:12px;font-size:22px;cursor:pointer}
+  .qty span{min-width:28px;text-align:center;font-size:18px;font-weight:700;color:#000}
+  .oerr{color:var(--err);font-size:14px;margin-top:10px;min-height:18px}
+  .obtn{width:100%;border:0;border-radius:14px;padding:14px;font-size:16px;font-weight:700;background:var(--red);color:#fff;cursor:pointer}
+  .obtn:disabled{opacity:.6;cursor:default}
+  .lnk{display:block;width:100%;margin-top:10px;border:0;background:none;color:#000;font-size:15px;font-weight:600;text-decoration:underline;padding:8px;cursor:pointer}
+  .ook{text-align:center;padding:18px 6px 14px}
+  .ook .tick{width:64px;height:64px;border-radius:50%;background:var(--red);color:#fff;font-size:32px;display:flex;align-items:center;justify-content:center;margin:0 auto 14px}
   .ook b{display:block;font-size:20px;margin-bottom:8px}
   .ook p{margin:0;font-size:15px;line-height:1.4}
 </style>
 </head>
 <body>
-<header><div id="contacts" class="contacts"></div>
-  <input id="q" class="search" type="search" placeholder="Поиск по товарам">
-  <div id="chips" class="chips"></div>
-</header>
-<main id="list"></main>
+
+<div id="viewHome">
+  <header>
+    <input id="q" class="search" type="search" placeholder="Поиск по товарам">
+    <div id="chips" class="chips"></div>
+  </header>
+  <main id="list"></main>
+</div>
+
+<div id="viewProfile" hidden>
+  <h1 class="ptitle">Профиль</h1>
+  <section class="psec" id="cb"></section>
+  <section class="psec" id="pur"></section>
+  <section class="psec"><p class="stitle">Связаться с нами</p><div class="cbox" id="cts"></div></section>
+</div>
+
+<nav class="tabs" aria-label="Разделы">
+  <button class="tab active" type="button" data-tab="home">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.8 2.5 11.5h2.7V21h5.3v-5.6h3V21h5.3v-9.5h2.7z"/></svg>Главная</button>
+  <button class="tab" type="button" data-tab="profile">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="7.6" r="4.6"/><path d="M3.5 21.5c0-4.6 3.8-7.3 8.5-7.3s8.5 2.7 8.5 7.3z"/></svg>Профиль</button>
+</nav>
 
 <div id="ord" class="ord" hidden>
   <div class="sheet" role="dialog" aria-modal="true">
@@ -86,30 +153,55 @@
 <script>
 // ============ НАСТРОЙКИ (меняйте здесь) ============
 const ADMIN_USERNAME = "robiya_billz";   // username админа в Telegram, без @
-const CURRENCY = "so'm";
-const CONTACTS = [{title:"Telegram", url:"https://t.me/robiya_billz"},{title:"+998 90 129 86 00", url:"tel:+998901298600"},{title:"Instagram", url:"https://instagram.com/crryqxx0"}];
-const BUTTON_TEXT = "Связаться с админом";   // надпись на кнопке связи с админом
-const ORDER_BUTTON_TEXT = "Заказать";    // надпись на кнопке заказа
+const CURRENCY = "сум";
+const CONTACTS = [
+  {title:"Telegram", url:"https://t.me/robiya_billz"},
+  {title:"+998 90 129 86 00", url:"tel:+998901298600"},
+  {title:"Instagram", url:"https://instagram.com/crryqxx0"},
+];
 
 // Тексты формы заказа
 const ORDER_TEXTS = {
-  title: "Заказать",
-  name: "Имя",
+  title: "Оформление заказа",
+  name: "Ваше имя",
   phone: "Номер телефона",
   qty: "Количество",
   comment: "Комментарий (необязательно)",
-  submit: "Отправить",
-  sending: "Отправляется...",
+  submit: "Отправить заказ",
+  sending: "Отправляем…",
+  admin: "Написать админу",
   okTitle: "Спасибо!",
-  ok: "Спасибо, приняли ваш заказ. Скоро с вами свяжутся",
+  ok: "Ваш заказ принят. Наши сотрудники скоро свяжутся с вами.",
   close: "Закрыть",
-  errField: "Пожалуйста, введите номер телефона и имя",
-  errSend: "Не получается отправить, попробуйте позже",
+  errField: "Укажите имя и номер телефона полностью",
+  errSend: "Не удалось отправить. Попробуйте ещё раз или напишите админу.",
 };
 
-// Текст сообщения админу. Можно менять слова как угодно.
+// Тексты карты лояльности и покупок
+const CB_TEXTS = {
+  title: "Карта лояльности",
+  balance: "Баланс кешбэка",
+  hello: "Здравствуйте",
+  ask: "Введите номер телефона, чтобы увидеть баланс",
+  check: "Показать",
+  checking: "…",
+  loading: "Загрузка…",
+  notFound: "Карта по этому номеру не найдена",
+  badPhone: "Введите номер телефона полностью",
+  error: "Не удалось загрузить карту",
+  retry: "Повторить",
+  change: "Другой номер",
+  card: "Карта",
+  purchases: "Мои покупки",
+  total: "Сумма покупок",
+  last: "Последняя покупка",
+  none: "Покупок пока нет",
+  needTg: "Покупки показываются при входе через Telegram",
+};
+
+// Текст сообщения админу
 // Подставляются: {name} — название, {variant} — выбранный цвет/размер, {price} — цена
-const MESSAGE_TEMPLATE = "Здравствуйте, {name} ({variant}) — {price} хотел(а) заказать";
+const MESSAGE_TEMPLATE = "Здравствуйте! Хочу купить: {name} ({variant}) — {price}";
 // ===================================================
 
 const tg = window.Telegram && Telegram.WebApp;
@@ -125,6 +217,8 @@ const DEMO = [
 let products = [], activeCat = "Все", query = "";
 const fmt = n => new Intl.NumberFormat("ru-RU").format(n) + " " + CURRENCY;
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const lsGet = k => { try { return localStorage.getItem(k) || ""; } catch(e) { return ""; } };
+const lsSet = (k, v) => { try { v ? localStorage.setItem(k, v) : localStorage.removeItem(k); } catch(e) {} };
 
 async function load(){
   try{
@@ -176,15 +270,16 @@ function card(p){
   const disc = v.oldPrice > v.price ? Math.round((1 - v.price/v.oldPrice)*100) : 0;
   const img = v.image || p.image;
   return `<div class="card" data-pid="${esc(p.id)}">
-    ${img ? `<img class="img" src="${esc(img)}" loading="lazy" alt="" onerror="this.remove()">` : ""}
+    <div class="ph">
+      ${img ? `<img class="img" src="${esc(img)}" loading="lazy" alt="" onerror="this.remove()">` : ""}
+      <button class="add" type="button" data-pid="${esc(p.id)}" aria-label="Заказать"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+    </div>
+    <div class="pr"><span class="price">${fmt(v.price)}</span>${disc ? `<span class="badge">−${disc}%</span>` : ""}</div>
+    ${disc ? `<div class="old">${fmt(v.oldPrice)}</div>` : ""}
     <p class="name">${esc(p.name)}</p>
     ${p.description ? `<p class="desc">${esc(p.description)}</p>` : ""}
     ${options(p, v)}
-    <div class="prices">${disc ? `<span class="old">${fmt(v.oldPrice)}</span><span class="badge">${disc}%</span>` : ""}</div>
-    <div class="price">${fmt(v.price)}</div>
     ${v.stock <= 0 ? `<div class="stock">Нет в наличии</div>` : ""}
-    <button class="obtn" data-pid="${esc(p.id)}">${esc(ORDER_BUTTON_TEXT)}</button>
-    <button class="btn alt" data-pid="${esc(p.id)}">${esc(BUTTON_TEXT)}</button>
   </div>`;
 }
 
@@ -215,11 +310,12 @@ function openOrder(pid){
     <label class="fl">${esc(ORDER_TEXTS.phone)}
       <input id="oPhone" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" placeholder="+998 90 123 45 67" value="+998 "></label>
     <div class="fl">${esc(ORDER_TEXTS.qty)}
-      <div class="qty"><button type="button" id="oMinus" aria-label="-">−</button><span id="oQty">1</span><button type="button" id="oPlus" aria-label="+">+</button></div></div>
+      <div class="qty"><button type="button" id="oMinus" aria-label="Меньше">−</button><span id="oQty">1</span><button type="button" id="oPlus" aria-label="Больше">+</button></div></div>
     <label class="fl">${esc(ORDER_TEXTS.comment)}
       <textarea id="oComment" rows="2" maxlength="500"></textarea></label>
     <div class="oerr" id="oErr"></div>
-    <button class="obtn" id="oSend" type="button" style="margin-top:4px">${esc(ORDER_TEXTS.submit)}</button>`;
+    <button class="obtn" id="oSend" type="button">${esc(ORDER_TEXTS.submit)}</button>
+    <button class="lnk" id="oAdmin" type="button">${esc(ORDER_TEXTS.admin)}</button>`;
   document.getElementById("ord").hidden = false;
   document.body.style.overflow = "hidden";
 }
@@ -240,6 +336,17 @@ function setQty(n){
 function phoneOk(s){
   const d = String(s).replace(/\D/g, "");
   return d.startsWith("998") ? d.length === 12 : d.length >= 9;
+}
+
+function writeAdmin(){
+  if(!ordP) return;
+  const v = ordP.variants[ordP.sel || 0];
+  const text = MESSAGE_TEMPLATE
+    .replace("{name}", ordP.name)
+    .replace("{variant}", variantLabel(v))
+    .replace("{price}", fmt(v.price))
+    .replace(/\s*\(\s*\)/g, "");
+  openLink(`https://t.me/${ADMIN_USERNAME}?text=${encodeURIComponent(text)}`);
 }
 
 async function sendOrder(){
@@ -274,17 +381,126 @@ async function sendOrder(){
   }
 }
 
+// ================= ССЫЛКИ И КОНТАКТЫ =================
+function openLink(url){
+  if(tg && url.indexOf("https://t.me/") === 0) tg.openTelegramLink(url);
+  else if(tg) tg.openLink(url);
+  else window.open(url, "_blank");
+}
+
+function copyNum(n){
+  var ta = document.createElement("textarea");
+  ta.value = n; ta.style.cssText = "position:fixed;opacity:0";
+  document.body.appendChild(ta); ta.select();
+  try{ document.execCommand("copy"); }catch(x){}
+  ta.remove();
+  try{ navigator.clipboard.writeText(n).catch(function(){}); }catch(x){}
+  var t = document.getElementById("toast");
+  if(!t){
+    t = document.createElement("div"); t.id = "toast";
+    t.style.cssText = "position:fixed;left:50%;top:24px;transform:translateX(-50%);background:rgba(0,0,0,.8);color:#fff;padding:12px 18px;border-radius:14px;font-size:14px;font-weight:600;z-index:50;width:max-content;max-width:90%;text-align:center";
+    document.body.appendChild(t);
+  }
+  t.textContent = "Номер скопирован: " + n; t.style.display = "block";
+  clearTimeout(window.__tt); window.__tt = setTimeout(function(){ t.style.display = "none"; }, 2500);
+}
+
+document.getElementById("cts").innerHTML = CONTACTS.map(c =>
+  `<a class="citem" href="${esc(c.url)}" data-url="${esc(c.url)}">${esc(c.title)}</a>`).join("");
+
+// ================= КАРТА ЛОЯЛЬНОСТИ И ПОКУПКИ =================
+const PHONE_KEY = "cb_phone";
+const cbBox = document.getElementById("cb"), purBox = document.getElementById("pur");
+let cbLast = {type:"loading"}, cbLoadedAt = 0;
+
+function fmtDate(s){
+  s = String(s || "").trim();
+  if(!s) return "";
+  const d = /^\d{9,13}$/.test(s) ? new Date(s.length <= 10 ? Number(s) * 1000 : Number(s)) : new Date(s);
+  if(isNaN(d) || d.getFullYear() < 2000) return "";
+  return d.toLocaleDateString("ru-RU", {day:"numeric", month:"long", year:"numeric"});
+}
+
+function cbRender(){
+  const L = cbLast, head = `<div class="lctop">💳 ${esc(CB_TEXTS.title)}</div>`;
+  let html = "", pur = "";
+  if(L.type === "loading"){
+    html = `<div class="lc">${head}<div class="lcl">${esc(CB_TEXTS.loading)}</div></div>`;
+  }else if(L.type === "err"){
+    html = `<div class="lc">${head}<div class="lcl">${esc(CB_TEXTS.error)}</div><div class="lcfoot"><button class="lcretry" id="cbRetry" type="button">${esc(CB_TEXTS.retry)}</button></div></div>`;
+  }else if(L.type === "ask"){
+    html = `<div class="lc">${head}
+      <div class="lcl">${esc(CB_TEXTS.ask)}</div>
+      <div class="lcform">
+        <input id="cbPhone" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" placeholder="+998 90 123 45 67" value="${esc(lsGet(PHONE_KEY) || "+998 ")}">
+        <button id="cbGo" type="button">${esc(CB_TEXTS.check)}</button>
+      </div>
+      <div class="lcmsg">${esc(L.msg || "")}</div></div>`;
+  }else{
+    const d = L.d, last = d.card ? String(d.card).slice(-4) : "";
+    html = `<div class="lc">${head}
+      <div class="lcl">${d.name ? esc(CB_TEXTS.hello + ", " + d.name + "! ") : ""}${esc(CB_TEXTS.balance)}</div>
+      <div class="lcbal">${fmt(d.balance)}</div>
+      <div class="lcfoot"><span>${last ? esc(CB_TEXTS.card) + " •••• " + esc(last) : ""}</span>
+        ${d.name ? "" : `<button id="cbChange" type="button">${esc(CB_TEXTS.change)}</button>`}</div></div>`;
+    let rows = "";
+    const p = d.purchases;
+    if(p){
+      if(p.total != null) rows += `<div class="prow"><span>${esc(CB_TEXTS.total)}</span><b>${fmt(p.total)}</b></div>`;
+      const ld = fmtDate(p.last);
+      if(ld) rows += `<div class="prow"><span>${esc(CB_TEXTS.last)}</span><b>${esc(ld)}</b></div>`;
+    }
+    if(!rows) rows = `<div class="pnote">${esc(d.name ? CB_TEXTS.none : CB_TEXTS.needTg)}</div>`;
+    pur = `<p class="stitle">${esc(CB_TEXTS.purchases)}</p><div class="pbox">${rows}</div>`;
+  }
+  cbBox.innerHTML = html;
+  purBox.innerHTML = pur;
+}
+
+async function loadCashback(phone, fromForm){
+  try{
+    const r = await fetch("/api/cashback", {method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({initData: tg ? tg.initData : "", phone: phone || ""})});
+    if(!r.ok) throw 0;
+    const d = await r.json();
+    cbLoadedAt = Date.now();
+    if(d.found){ if(phone && !d.name) lsSet(PHONE_KEY, phone); cbLast = {type:"card", d}; }
+    else if(d.reason === "not_found"){ lsSet(PHONE_KEY, ""); cbLast = {type:"ask", msg: CB_TEXTS.notFound}; }
+    else if(d.reason === "bad_phone"){ cbLast = {type:"ask", msg: CB_TEXTS.badPhone}; }
+    else cbLast = {type:"ask", msg: ""};
+  }catch(e){
+    // при тихом обновлении не затираем уже показанную карту
+    if(fromForm) cbLast = {type:"ask", msg: CB_TEXTS.error};
+    else if(!cbLast || cbLast.type === "loading") cbLast = {type:"err"};
+  }
+  cbRender();
+}
+
+// ================= ВКЛАДКИ =================
+function showTab(name){
+  document.getElementById("viewHome").hidden = name !== "home";
+  document.getElementById("viewProfile").hidden = name !== "profile";
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.tab === name));
+  window.scrollTo(0, 0);
+  // при входе в профиль обновляем данные, если они старше минуты
+  if(name === "profile" && cbLast.type !== "ask" && Date.now() - cbLoadedAt > 60000) loadCashback(lsGet(PHONE_KEY), false);
+}
+
+// ================= ОБРАБОТЧИКИ =================
 document.addEventListener("click", e => {
-  const ob = e.target.closest(".obtn");
-  if(ob && ob.dataset.pid){ openOrder(ob.dataset.pid); return; }
+  const tab = e.target.closest(".tab");
+  if(tab){ showTab(tab.dataset.tab); return; }
+
+  // форма заказа
+  const add = e.target.closest(".add");
+  if(add){ openOrder(add.dataset.pid); return; }
   if(e.target.closest("#oSend")){ sendOrder(); return; }
+  if(e.target.closest("#oAdmin")){ writeAdmin(); return; }
   if(e.target.closest("#oMinus")){ if(ordP) setQty(ordQty - 1); return; }
   if(e.target.closest("#oPlus")){ if(ordP) setQty(ordQty + 1); return; }
   if(e.target.closest("#ordX") || e.target.closest("#oClose") || e.target.id === "ord"){ closeOrder(); return; }
-});
-document.addEventListener("keydown", e => { if(e.key === "Escape" && !document.getElementById("ord").hidden) closeOrder(); });
 
-document.addEventListener("click", e => {
+  // каталог
   const chip = e.target.closest(".chip");
   if(chip){ activeCat = chip.dataset.c; render(); return; }
 
@@ -307,26 +523,34 @@ document.addEventListener("click", e => {
     return;
   }
 
-  const btn = e.target.closest(".btn");
-  if(btn){
-    const p = products.find(x => String(x.id) === btn.dataset.pid);
-    const v = p.variants[p.sel || 0];
-    const variantText = Object.entries(v.attrs).map(([k, val]) => `${k}: ${val}`).join(", ");
-    const text = MESSAGE_TEMPLATE
-      .replace("{name}", p.name)
-      .replace("{variant}", variantText)
-      .replace("{price}", fmt(v.price))
-      .replace(/\s*\(\s*\)/g, "");
-    const url = `https://t.me/${ADMIN_USERNAME}?text=${encodeURIComponent(text)}`;
-    tg ? tg.openTelegramLink(url) : window.open(url, "_blank");
+  // профиль: карта и контакты
+  if(e.target.closest("#cbGo")){
+    const v = document.getElementById("cbPhone").value.trim();
+    const btn = document.getElementById("cbGo");
+    btn.disabled = true; btn.textContent = CB_TEXTS.checking;
+    loadCashback(v, true);
+    return;
+  }
+  if(e.target.closest("#cbChange")){ lsSet(PHONE_KEY, ""); cbLast = {type:"ask", msg:""}; cbRender(); return; }
+  if(e.target.closest("#cbRetry")){ cbLast = {type:"loading"}; cbRender(); loadCashback(lsGet(PHONE_KEY), false); return; }
+
+  const a = e.target.closest(".citem");
+  if(a){
+    const url = a.dataset.url;
+    if(url.indexOf("tel:") === 0){
+      if(!/Android|iPhone|iPad/i.test(navigator.userAgent)) e.preventDefault();
+      copyNum(url.slice(4));
+      return;
+    }
+    if(url.indexOf("http") === 0){ e.preventDefault(); openLink(url); }
   }
 });
+document.addEventListener("keydown", e => { if(e.key === "Escape" && !document.getElementById("ord").hidden) closeOrder(); });
 document.getElementById("q").addEventListener("input", e => { query = e.target.value.trim().toLowerCase(); render(); });
 
-function renderContacts(){document.getElementById("contacts").innerHTML='<button class="cbtn" id="cbtn" type="button" aria-label="Связь"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14v-2a8 8 0 0 1 16 0v2"/><rect x="2.5" y="13" width="4" height="6" rx="1.5"/><rect x="17.5" y="13" width="4" height="6" rx="1.5"/><path d="M19.5 19c0 1.7-1.6 3-4 3h-2"/></svg></button><div class="cmenu" id="cmenu">'+CONTACTS.map(function(c){return '<a class="citem" href="'+esc(c.url)+'" data-url="'+esc(c.url)+'">'+esc(c.title)+'</a>';}).join("")+'</div>';}
-document.addEventListener("click",function(e){var m=document.getElementById("cmenu");if(!m)return;if(e.target.closest("#cbtn")){m.classList.toggle("open");return;}var a=e.target.closest(".citem");if(a){var url=a.dataset.url;m.classList.remove("open");if(url.indexOf("tel:")===0){var num=url.slice(4);if(!/Android|iPhone|iPad/i.test(navigator.userAgent))e.preventDefault();copyNum(num);return;}if(url.indexOf("http")===0){e.preventDefault();if(tg&&url.indexOf("https://t.me/")===0)tg.openTelegramLink(url);else if(tg)tg.openLink(url);else window.open(url,"_blank");}return;}m.classList.remove("open");});
-function copyNum(n){var ta=document.createElement("textarea");ta.value=n;ta.style.cssText="position:fixed;opacity:0";document.body.appendChild(ta);ta.select();try{document.execCommand("copy");}catch(x){}ta.remove();try{navigator.clipboard.writeText(n).catch(function(){});}catch(x){}var t=document.getElementById("toast");if(!t){t=document.createElement("div");t.id="toast";t.style.cssText="position:fixed;left:50%;top:24px;transform:translateX(-50%);background:rgba(74,52,38,.65);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);color:#fff;padding:12px 18px;border-radius:14px;font-size:14px;font-weight:600;z-index:50;width:max-content;width:max-content;max-width:90%;text-align:center";document.body.appendChild(t);}t.textContent="Номер скопирован: "+n;t.style.display="block";clearTimeout(window.__tt);window.__tt=setTimeout(function(){t.style.display="none";},2500);}renderContacts();
+cbRender();
 load();
+loadCashback(lsGet(PHONE_KEY), false);
 </script>
 </body>
 </html>
